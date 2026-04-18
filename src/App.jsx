@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Lock, Unlock, Copy, KeyRound, AlertCircle, FileText, Cpu, Server, BookOpen, Terminal } from 'lucide-react';
+import { Lock, Unlock, Copy, KeyRound, AlertCircle, FileText, Cpu, BookOpen, Terminal, ArrowDown, Database, Key } from 'lucide-react';
 import { encryptText, decryptText } from './crypto';
 import './index.css';
 
@@ -149,6 +149,69 @@ function App() {
 
   const curTheory = algorithmTheories[algo];
 
+  const renderDiagram = () => {
+    if (traces.length === 0) return null; // Only show after execution
+    
+    // Default flow type
+    const isDecrypt = traces[1]?.desc.includes("Trừ") || traces[1]?.title.includes("Ciphertext Splitting") || traces[1]?.title.includes("Decryption");
+
+    if (algo === 'AES') {
+      return (
+        <div className="diagram-container">
+          <div className="diagram-node input"><Database size={16}/> {isDecrypt ? 'Ciphertext (128-bit)' : 'Plaintext (128-bit)'}</div>
+          <ArrowDown className="diagram-arrow" size={20}/>
+          <div className="diagram-row">
+            <div className="diagram-node process">AddRoundKey</div>
+            <div className="diagram-node key-node"><Key size={14}/> Round Key 0</div>
+          </div>
+          <ArrowDown className="diagram-arrow" size={20}/>
+          <div className="diagram-node highlight">
+            <strong>{isDecrypt ? '10 Decryption Rounds' : '10 Encryption Rounds'}</strong><br/>
+            {isDecrypt ? 'InvShiftRows → InvSubBytes → AddRoundKey → InvMixColumns' : 'SubBytes → ShiftRows → MixColumns → AddRoundKey'}
+          </div>
+          <ArrowDown className="diagram-arrow" size={20}/>
+          <div className="diagram-node output"><Database size={16}/> {isDecrypt ? 'Plaintext (Output)' : 'Ciphertext (Output)'}</div>
+        </div>
+      );
+    }
+    if (algo === 'DES') {
+      return (
+        <div className="diagram-container">
+          <div className="diagram-node input"><Database size={16}/> {isDecrypt ? 'Ciphertext (64-bit)' : 'Plaintext (64-bit)'}</div>
+          <ArrowDown className="diagram-arrow" size={20}/>
+          <div className="diagram-node process">Initial Permutation (IP)</div>
+          <ArrowDown className="diagram-arrow" size={20}/>
+          <div className="diagram-row">
+            <div className="diagram-node highlight">
+              <strong>16 Feistel Rounds</strong><br/>
+              L(n) = R(n-1) <br/>
+              R(n) = L(n-1) ⊕ F(R(n-1), Subkey)
+            </div>
+            <div className="diagram-node key-node"><Key size={14}/> {isDecrypt ? 'Reverse Subkeys' : '16 Subkeys'}</div>
+          </div>
+          <ArrowDown className="diagram-arrow" size={20}/>
+          <div className="diagram-node output"><Database size={16}/> {isDecrypt ? 'Plaintext (Output)' : 'Ciphertext (Output)'}</div>
+        </div>
+      );
+    }
+    if (algo === 'CAESAR') {
+      const shift = isDecrypt ? '-k' : '+k';
+      return (
+        <div className="diagram-container">
+          <div className="diagram-node input">A B C D E ...</div>
+          <ArrowDown className="diagram-arrow" size={20}/>
+          <div className="diagram-node highlight">
+            <strong>Shift Operation</strong><br/>
+            ASCII Char {shift}
+          </div>
+          <ArrowDown className="diagram-arrow" size={20}/>
+          <div className="diagram-node output">X Y Z A B ...</div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="app-container">
       <div className="glass-card">
@@ -244,6 +307,13 @@ function App() {
           </div>
 
           <h2 className="section-title"><Terminal size={18} /> Execution Trace</h2>
+          
+          {traces.length > 0 && (
+            <div className="diagram-wrapper">
+              {renderDiagram()}
+            </div>
+          )}
+
           <div className="trace-container">
             {traces.length === 0 ? (
               <p style={{fontSize: '0.85rem', color: '#94a3b8', fontStyle: 'italic'}}>Bấm Mã hóa hoặc Giải mã để xem luồng dữ liệu phân tích ở đây.</p>
