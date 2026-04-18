@@ -70,13 +70,17 @@ function App() {
       });
       traceSteps.push({ 
         step: 3, 
-        title: "3. Block Splitting & Padding (PKCS7)", 
-        desc: "Chuỗi văn bản được đệm bổ sung và chặt thành các khối dữ liệu 128-bit kích thước đều nhau." 
+        title: type === 'encrypt' ? "3. Block Splitting & Padding (PKCS7)" : "3. Ciphertext Splitting", 
+        desc: type === 'encrypt' 
+          ? "Chuỗi văn bản được đệm bổ sung và chặt thành các khối dữ liệu 128-bit kích thước đều nhau." 
+          : "Chuỗi Ciphertext được phân rã ngược lại thành các khối 128-bit để chuẩn bị giải mã."
       });
       traceSteps.push({ 
         step: 4, 
-        title: `4. Rounds Execution`, 
-        desc: `Chạy các vòng lặp (Rounds) bằng các phép toán: SubBytes -> ShiftRows -> MixColumns -> AddRoundKey.` 
+        title: type === 'encrypt' ? `4. Encryption Rounds Execution` : `4. Decryption Rounds (Inverse)`, 
+        desc: type === 'encrypt' 
+          ? `Chạy các vòng lặp (Rounds) bằng các phép toán: SubBytes -> ShiftRows -> MixColumns -> AddRoundKey.` 
+          : `Thực thi vòng lặp nghịch đảo: InvShiftRows -> InvSubBytes -> AddRoundKey -> InvMixColumns.`
       });
     }
     else if (algo === 'DES') {
@@ -87,8 +91,10 @@ function App() {
       });
       traceSteps.push({ 
         step: 3, 
-        title: "3. Feistel Network", 
-        desc: "Chuỗi được chia khối 64-bit. Mỗi khối cắt làm 2 nửa L/R, liên tục đan chéo và XOR với khóa con." 
+        title: type === 'encrypt' ? "3. Feistel Network (Encryption)" : "3. Feistel Network (Decryption)", 
+        desc: type === 'encrypt'
+          ? "Chuỗi được chia khối 64-bit. Mỗi khối cắt làm 2 nửa L/R, liên tục đan chéo và XOR với khóa con."
+          : "Đưa dữ liệu mã hóa qua mạng Feistel, thay vì chạy chiều xuôi thì áp dụng Subkeys theo trình tự đảo ngược (Reverse Order)."
       });
     }
 
