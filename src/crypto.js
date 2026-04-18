@@ -1,14 +1,50 @@
 import CryptoJS from 'crypto-js';
 
 // --- AES ---
-export const encryptAES = (text, secretKey) => {
-  return CryptoJS.AES.encrypt(text, secretKey).toString();
+export const encryptAES = (text, secretKey, options = {}) => {
+  const { aesKeySize = 256, aesMode = 'CBC' } = options;
+  const modeMap = {
+    CBC: CryptoJS.mode.CBC,
+    ECB: CryptoJS.mode.ECB,
+    CTR: CryptoJS.mode.CTR
+  };
+
+  const keyLen = aesKeySize / 32;
+  const hash = CryptoJS.SHA256(secretKey);
+  const key = CryptoJS.lib.WordArray.create(hash.words.slice(0, keyLen));
+  const iv = CryptoJS.lib.WordArray.create(CryptoJS.SHA256(secretKey + "IV").words.slice(0, 4));
+
+  const cipherParams = {
+    mode: modeMap[aesMode] || CryptoJS.mode.CBC,
+    padding: CryptoJS.pad.Pkcs7,
+    iv: modeMap[aesMode] === 'ECB' ? undefined : iv
+  };
+
+  return CryptoJS.AES.encrypt(text, key, cipherParams).toString();
 };
 
-export const decryptAES = (ciphertext, secretKey) => {
-  const bytes = CryptoJS.AES.decrypt(ciphertext, secretKey);
+export const decryptAES = (ciphertext, secretKey, options = {}) => {
+  const { aesKeySize = 256, aesMode = 'CBC' } = options;
+  const modeMap = {
+    CBC: CryptoJS.mode.CBC,
+    ECB: CryptoJS.mode.ECB,
+    CTR: CryptoJS.mode.CTR
+  };
+
+  const keyLen = aesKeySize / 32;
+  const hash = CryptoJS.SHA256(secretKey);
+  const key = CryptoJS.lib.WordArray.create(hash.words.slice(0, keyLen));
+  const iv = CryptoJS.lib.WordArray.create(CryptoJS.SHA256(secretKey + "IV").words.slice(0, 4));
+
+  const cipherParams = {
+    mode: modeMap[aesMode] || CryptoJS.mode.CBC,
+    padding: CryptoJS.pad.Pkcs7,
+    iv: modeMap[aesMode] === 'ECB' ? undefined : iv
+  };
+
+  const bytes = CryptoJS.AES.decrypt(ciphertext, key, cipherParams);
   const originalText = bytes.toString(CryptoJS.enc.Utf8);
-  if (!originalText) throw new Error('Key không khớp hoặc dữ liệu bị hỏng.');
+  if (!originalText) throw new Error('Dữ liệu vỡ nát. Khả năng cao do sai Key, sai Mode hoặc sai Key Size.');
   return originalText;
 };
 
@@ -84,11 +120,11 @@ export const bruteForceCaesar = (ciphertext) => {
 };
 
 // --- MAIN WRAPPERS ---
-export const encryptText = (algo, text, secretKey) => {
+export const encryptText = (algo, text, secretKey, options = {}) => {
   if (!text || !secretKey) return '';
   try {
     switch (algo) {
-      case 'AES': return encryptAES(text, secretKey);
+      case 'AES': return encryptAES(text, secretKey, options);
       case 'DES': return encryptDES(text, secretKey);
       case 'CAESAR': return encryptCaesar(text, secretKey);
       default: return '';
@@ -98,10 +134,10 @@ export const encryptText = (algo, text, secretKey) => {
   }
 };
 
-export const decryptText = (algo, ciphertext, secretKey) => {
+export const decryptText = (algo, ciphertext, secretKey, options = {}) => {
   if (!ciphertext || !secretKey) return '';
   switch (algo) {
-    case 'AES': return decryptAES(ciphertext, secretKey);
+    case 'AES': return decryptAES(ciphertext, secretKey, options);
     case 'DES': return decryptDES(ciphertext, secretKey);
     case 'CAESAR': return decryptCaesar(ciphertext, secretKey);
     default: return '';

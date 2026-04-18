@@ -49,8 +49,10 @@ function App() {
   const [traces, setTraces] = useState([]);
   const [cryptoMode, setCryptoMode] = useState('encrypt');
   const [bruteResults, setBruteResults] = useState([]);
+  const [aesKeySize, setAesKeySize] = useState('256');
+  const [aesMode, setAesMode] = useState('CBC');
 
-  const generateTrace = (type, inputLength, originalKey) => {
+  const generateTrace = (type, inputLength, originalKey, opts = {}) => {
     let traceSteps = [];
     traceSteps.push({ step: 1, title: "1. Input Initialization", desc: `Nhận chuỗi kí tự độ dài ${inputLength}.` });
     
@@ -68,24 +70,26 @@ function App() {
       });
     } 
     else if (algo === 'AES') {
+      const { aesKeySize = '256', aesMode = 'CBC' } = opts;
+      const rounds = aesKeySize === '128' ? 10 : (aesKeySize === '192' ? 12 : 14);
       traceSteps.push({ 
         step: 2, 
-        title: "2. Key Expansion", 
-        desc: "Băm hoặc đệm Secret Key để đạt độ chuẩn cấp phát (128/256-bit). Tạo Initial Vector." 
+        title: `2. Key Derivation (${aesKeySize}-bit)`, 
+        desc: `Dạ thưa thầy/cô, hệ thống tiến hành băm (Hash) chuỗi Secret Key ban đầu để ép chuẩn độ dài thành chính xác ${aesKeySize}-bit. Khóa mẹ này tiếp tục được Hệ thống chẻ thành ${rounds + 1} khóa con (Subkeys) dự trữ để trộn vào mảng dữ liệu trong các vòng lặp.` 
       });
       traceSteps.push({ 
         step: 3, 
-        title: type === 'encrypt' ? "3. Block Splitting & Padding (PKCS7)" : "3. Ciphertext Splitting", 
+        title: type === 'encrypt' ? `3. Block Splitting & ${aesMode} Mode` : `3. Ciphertext Splitting & ${aesMode} Mode`, 
         desc: type === 'encrypt' 
-          ? "Chuỗi văn bản được đệm bổ sung và chặt thành các khối dữ liệu 128-bit kích thước đều nhau." 
-          : "Chuỗi Ciphertext được phân rã ngược lại thành các khối 128-bit để chuẩn bị giải mã."
+          ? `Bản rõ (Plaintext) được phân rã thành các mảnh 128-bit. Do áp dụng kiến trúc ${aesMode}, ${aesMode === 'CBC' ? "mỗi khối sẽ bị trộn chéo (XOR) với khối mã hóa phía trước để đảm bảo tính ngẫu nhiên an toàn tuyệt đối." : (aesMode === 'ECB' ? "các mảnh bị mã hóa một cách độc lập (dễ vỡ mật mã)." : "mỗi khối được mã hóa dưới dạng luồng tịnh tiến độc lập siêu tốc.")}` 
+          : `Chuỗi mã hóa bị cắt ngược lại thành nhiều khối 128-bit riêng lẻ, giải mã theo khối lùi dần, tham chiếu ngược IV (Initialization Vector) theo đúng kịch bản giải mã khối của ${aesMode}.`
       });
       traceSteps.push({ 
         step: 4, 
-        title: type === 'encrypt' ? `4. Encryption Rounds Execution` : `4. Decryption Rounds (Inverse)`, 
+        title: type === 'encrypt' ? `4. Execute ${rounds} Encryption Rounds (SPN)` : `4. Execute ${rounds} Decryption Rounds`, 
         desc: type === 'encrypt' 
-          ? `Chạy các vòng lặp (Rounds) bằng các phép toán: SubBytes -> ShiftRows -> MixColumns -> AddRoundKey.` 
-          : `Thực thi vòng lặp nghịch đảo: InvShiftRows -> InvSubBytes -> AddRoundKey -> InvMixColumns.`
+          ? `Chạy ${rounds} vòng lặp mã hóa lõi bao gồm các hàm khuếch tán: Đầu tiên là SubBytes (ánh xạ qua hộp S-Box chuẩn GF(2^8)), kế tiếp ShiftRows (Dịch hàng ngẫu nhiên), MixColumns (Nhân ma trận MDS) và chốt lại bằng AddRoundKey (XOR khóa con).` 
+          : `Thực thi vòng lặp giải mã nghịch đảo đi lùi từ vòng ${rounds} về 1. Bao gồm: InvShiftRows (dịch trả hàng), InvSubBytes (vào nghịch bảng S-Box), AddRoundKey và InvMixColumns để tái tạo dòng bản rõ gốc.`
       });
     }
     else if (algo === 'DES') {
@@ -152,14 +156,14 @@ function App() {
     try {
       let out = '';
       if (type === 'encrypt') {
-        out = encryptText(algo, text, secretKey);
+        out = encryptText(algo, text, secretKey, { aesKeySize: parseInt(aesKeySize), aesMode });
       } else {
-        out = decryptText(algo, text, secretKey);
+        out = decryptText(algo, text, secretKey, { aesKeySize: parseInt(aesKeySize), aesMode });
       }
       setResult(out);
       
       // Delay render logic steps for a sequential timeline feel
-      const constructedTraces = generateTrace(type, text.length, secretKey);
+      const constructedTraces = generateTrace(type, text.length, secretKey, { aesKeySize, aesMode });
       setTraces(constructedTraces);
 
     } catch (err) {
@@ -184,17 +188,18 @@ function App() {
     const isDecrypt = cryptoMode === 'decrypt';
 
     if (algo === 'AES') {
+      const rounds = aesKeySize === '128' ? 10 : (aesKeySize === '192' ? 12 : 14);
       return (
         <div className="diagram-container">
           <div className="diagram-node input"><Database size={16}/> {isDecrypt ? 'Ciphertext (128-bit)' : 'Plaintext (128-bit)'}</div>
           <ArrowDown className="diagram-arrow" size={20}/>
           <div className="diagram-row">
-            <div className="diagram-node process">AddRoundKey</div>
+            <div className="diagram-node process">{aesMode} AddRoundKey</div>
             <div className="diagram-node key-node"><Key size={14}/> Round Key 0</div>
           </div>
           <ArrowDown className="diagram-arrow" size={20}/>
           <div className="diagram-node highlight">
-            <strong>{isDecrypt ? '10 Decryption Rounds' : '10 Encryption Rounds'}</strong><br/>
+            <strong>{isDecrypt ? `${rounds} Decryption Rounds` : `${rounds} Encryption Rounds`}</strong><br/>
             {isDecrypt ? 'InvShiftRows → InvSubBytes → AddRoundKey → InvMixColumns' : 'SubBytes → ShiftRows → MixColumns → AddRoundKey'}
           </div>
           <ArrowDown className="diagram-arrow" size={20}/>
@@ -260,6 +265,27 @@ function App() {
                 <option value="CAESAR">Caesar Cipher (Mã hóa thay thế)</option>
               </select>
             </div>
+
+            {algo === 'AES' && (
+              <div style={{display: 'flex', gap: '12px', marginBottom: '18px'}}>
+                <div style={{flex: 1}}>
+                  <label style={{display: 'flex', gap: '8px', fontSize: '0.9rem', marginBottom: '8px', color: '#f8fafc', fontWeight: 500}}><Key size={14}/> Key Size</label>
+                  <select value={aesKeySize} onChange={(e) => setAesKeySize(e.target.value)}>
+                    <option value="128">128-bit (10 Rounds)</option>
+                    <option value="192">192-bit (12 Rounds)</option>
+                    <option value="256">256-bit (14 Rounds)</option>
+                  </select>
+                </div>
+                <div style={{flex: 1}}>
+                  <label style={{display: 'flex', gap: '8px', fontSize: '0.9rem', marginBottom: '8px', color: '#f8fafc', fontWeight: 500}}><Database size={14}/> Cipher Mode</label>
+                  <select value={aesMode} onChange={(e) => setAesMode(e.target.value)}>
+                    <option value="CBC">CBC (Tiêu chuẩn)</option>
+                    <option value="ECB">ECB (Độc lập)</option>
+                    <option value="CTR">CTR (Counter)</option>
+                  </select>
+                </div>
+              </div>
+            )}
 
             <div className="input-group">
               <label>
