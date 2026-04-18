@@ -5,32 +5,35 @@ import './index.css';
 
 const algorithmTheories = {
   AES: {
-    name: "Advanced Encryption Standard (AES)",
-    desc: "AES là tiêu chuẩn mã hóa đối xứng phân khối được sử dụng rộng rãi và an toàn nhất hiện nay. Hỗ trợ khóa 128, 192 hoặc 256 bits.",
+    name: "Advanced Encryption Standard (AES) / Rijndael",
+    desc: "Được Viện Tiêu chuẩn và Công nghệ Quốc gia Hoa Kỳ (NIST) công bố vào năm 2001. Đây là thuật toán mã hóa đối xứng phân khối (Symmetric-key block cipher) thuộc mạng SPN (Substitution-Permutation Network). Không giống như DES dùng mạng Feistel, AES thực hiện toàn bộ các phép xử lý song song trên một ma trận trạng thái (State array).",
     details: [
-      "Kích thước khối (Block size): 128 bits.",
-      "Số vòng lặp (Rounds): 10, 12, hoặc 14 vòng tùy theo độ dài khóa.",
-      "Kỹ thuật lõi: Ma trận trạng thái (State array) 4x4.",
-      "Cấu trúc mỗi vòng: SubBytes, ShiftRows, MixColumns, AddRoundKey."
+      "Kích thước khối (Block Size): Cố định ở mức 128-bit.",
+      "Kích thước khóa (Key Size): Hỗ trợ 128, 192, hoặc 256-bit.",
+      "Số vòng lặp (Rounds): 10 vòng (khóa 128), 12 vòng (khóa 192), hoặc 14 vòng (khóa 256).",
+      "Kỹ thuật lõi SPN: SubBytes (Khối thế phi tuyến S-Box dựa trên GF(2^8)), ShiftRows (Dịch hàng tuyến tính), MixColumns (Trộn cột bằng ma trận MDS), AddRoundKey (XOR ma trận với Round Key).",
+      "Quá trình giải mã: Sử dụng các hàm nghịch đảo InvSubBytes, InvShiftRows, InvMixColumns. Khóa vòng (Round keys) được áp dụng theo trình tự ngược lại."
     ]
   },
   DES: {
     name: "Data Encryption Standard (DES)",
-    desc: "DES là tiêu chuẩn mã hóa từ những năm 1970, tiền thân của AES. Hiện nay DES đã có thể bị phá vỡ dễ dàng bằng Brute-Force do chiều dài khóa quá ngắn.",
+    desc: "Phát triển bởi IBM (dựa trên thuật toán Lucifer) và được NSA áp dụng làm tiêu chuẩn liên bang Hoa Kỳ (FIPS) vào 1977. Là nền tảng mở đường cho mật mã học hiện đại nhưng nay đã lỗi thời do khóa quá ngắn (có thể bị bẻ bằng máy tính hiện đại).",
     details: [
-      "Kích thước khối (Block size): 64 bits.",
-      "Kích thước khóa (Key length): 56 bits (gần như mất an toàn).",
-      "Kỹ thuật lõi: Mạng Feistel (Feistel network).",
-      "Số vòng lặp (Rounds): 16 vòng."
+      "Kích thước khối (Block Size): 64-bit.",
+      "Chiều dài khóa (Key Length): 56-bit hoạt động chức năng (chọn từ khóa gốc 64-bit, 8-bit dùng làm kiểm tra chẵn lẻ Parity check).",
+      "Kỹ thuật lõi: Mạng Feistel (Feistel Network) chia khối dữ liệu làm đôi: Nửa trái (L) và Nửa phải (R).",
+      "Số vòng lặp (Rounds): 16 vòng lặp tiêu chuẩn.",
+      "Đặc tính: Quá trình mã hóa và giải mã gần như giống hệt nhau về thuật toán (chỉ cần đảo ngược thứ tự các khóa con Subkeys từ 16 về 1)."
     ]
   },
   CAESAR: {
-    name: "Mã hóa dịch chuyển Caesar",
-    desc: "Là kỹ thuật mã hóa thay thế lâu đời nhất. Được Julius Caesar sử dụng để gửi thông điệp bí mật. Nguyên lý dựa trên việc dịch chuyển các ký tự đi một số nguyên k.",
+    name: "Mã hóa Caesar (Caesar Cipher / Shift Cipher)",
+    desc: "Một trong những kỹ thuật mã hóa thay thế đơn giản và lâu đời nhất, được đặt theo tên của Julius Caesar thời La Mã. Cơ chế là thay thế mỗi ký tự trong bản rõ bằng một ký tự cách nó một khoảng n nhất định trong bảng chữ cái.",
     details: [
-      "Khóa k: Mã ASCII được cộng thêm một hằng số.",
-      "Ví dụ: A(65) + 3 = D(68).",
-      "Độ an toàn: Rất thấp, có thể bị phá vỡ bằng phân tích tần suất chữ cái."
+      "Biểu diễn toán học (Mã hóa): E_n(x) = (x + n) mod 26.",
+      "Biểu diễn toán học (Giải mã): D_n(x) = (x - n) mod 26.",
+      "Không gian khóa (Key Space): Rất nhỏ, chỉ có 25 khóa có khả năng (đối với bảng chữ cái tiếng Anh 26 chữ).",
+      "Điểm yếu rủi ro: Cực kỳ dễ bị bẻ khóa (Tấn công Brute Force duyệt toàn bộ 25 trường hợp, hoặc dùng Tấn công phân tích tần suất - Frequency Analysis)."
     ]
   }
 };
@@ -44,6 +47,7 @@ function App() {
   
   // Traces will hold array of steps: { step, title, desc }
   const [traces, setTraces] = useState([]);
+  const [cryptoMode, setCryptoMode] = useState('encrypt');
 
   const generateTrace = (type, inputLength, originalKey) => {
     let traceSteps = [];
@@ -110,6 +114,7 @@ function App() {
   const processCrypto = (type) => {
     setError('');
     setTraces([]);
+    setCryptoMode(type);
     
     if (!text || !secretKey) {
       setError(`Vui lòng nhập văn bản và Secret Key để chạy thuật toán.`);
@@ -152,8 +157,8 @@ function App() {
   const renderDiagram = () => {
     if (traces.length === 0) return null; // Only show after execution
     
-    // Default flow type
-    const isDecrypt = traces[1]?.desc.includes("Trừ") || traces[1]?.title.includes("Ciphertext Splitting") || traces[1]?.title.includes("Decryption");
+    // Explicit flow type from state
+    const isDecrypt = cryptoMode === 'decrypt';
 
     if (algo === 'AES') {
       return (
