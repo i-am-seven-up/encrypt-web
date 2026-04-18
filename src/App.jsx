@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
-import { Lock, Unlock, Copy, KeyRound, AlertCircle, FileText, Cpu, BookOpen, Terminal, ArrowDown, Database, Key } from 'lucide-react';
-import { encryptText, decryptText } from './crypto';
+import { Lock, Unlock, Copy, KeyRound, AlertCircle, FileText, Cpu, BookOpen, Terminal, ArrowDown, Database, Key, ShieldAlert, Star } from 'lucide-react';
+import { encryptText, decryptText, bruteForceCaesar } from './crypto';
 import './index.css';
 
 const algorithmTheories = {
@@ -48,6 +48,7 @@ function App() {
   // Traces will hold array of steps: { step, title, desc }
   const [traces, setTraces] = useState([]);
   const [cryptoMode, setCryptoMode] = useState('encrypt');
+  const [bruteResults, setBruteResults] = useState([]);
 
   const generateTrace = (type, inputLength, originalKey) => {
     let traceSteps = [];
@@ -114,8 +115,30 @@ function App() {
   const processCrypto = (type) => {
     setError('');
     setTraces([]);
+    setBruteResults([]);
     setCryptoMode(type);
     
+    // Brute force bypasses key requirements
+    if (type === 'bruteforce') {
+      if (algo !== 'CAESAR') return;
+      if (!text) { setError('Vui lòng nhập Ciphertext cần phá mã vào ô Văn bản.'); return; }
+      try {
+        const outList = bruteForceCaesar(text);
+        setBruteResults(outList);
+        setResult(''); // Clear single result
+        
+        setTraces([
+          { step: 1, title: "1. Detect Target", desc: "Xác định chuỗi Ciphertext ở chế độ Brute Force." },
+          { step: 2, title: "2. Base64 Decode", desc: "Tháo dỡ định dạng Base64 để thu về dải ký tự gốc." },
+          { step: 3, title: "3. Linear Scan & Frequency Analysis", desc: "Dò liên tiếp vòng lặp 1 đến 100 bằng phép trừ ASCII. Đếm tần suất chữ cái (a, e, i...) và khoảng trắng liên tục." },
+          { step: 4, title: "4. Output & Highlight", desc: "Sắp xếp theo Điểm ngôn ngữ. Trả về bảng quét toàn diện để mắt người dễ bề rà soát nhất." }
+        ]);
+      } catch(err) {
+        setError(err.message);
+      }
+      return;
+    }
+
     if (!text || !secretKey) {
       setError(`Vui lòng nhập văn bản và Secret Key để chạy thuật toán.`);
       return;
@@ -278,22 +301,41 @@ function App() {
               <button className="btn btn-decrypt" onClick={() => processCrypto('decrypt')}>
                 <Unlock size={18} /> Giải mã
               </button>
+              {algo === 'CAESAR' && (
+                <button className="btn" style={{backgroundColor: '#f59e0b'}} onClick={() => processCrypto('bruteforce')}>
+                  <ShieldAlert size={18} /> Phá mã
+                </button>
+              )}
             </div>
 
             <div className="result-group">
               <div className="result-header">
                 <label>Kết quả (Output):</label>
-                <button className="btn-copy" onClick={handleCopy} title="Copy kết quả">
-                  <Copy size={16} />
-                </button>
+                {cryptoMode !== 'bruteforce' && (
+                  <button className="btn-copy" onClick={handleCopy} title="Copy kết quả">
+                    <Copy size={16} />
+                  </button>
+                )}
               </div>
-              <textarea
-                className="result-box"
-                readOnly
-                value={result}
-                placeholder="Khung kết quả..."
-                rows={4}
-              />
+              
+              {cryptoMode === 'bruteforce' && bruteResults.length > 0 ? (
+                <div className="brute-force-list">
+                  {bruteResults.map((r, idx) => (
+                    <div key={idx} className={`brute-item ${idx === 0 ? 'highlight-bingo' : ''}`}>
+                      <div className="brute-key">Shift -{r.shift} {idx === 0 && <Star size={14} color="#fcd34d" />}</div>
+                      <div className="brute-text">{r.text}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <textarea
+                  className="result-box"
+                  readOnly
+                  value={result}
+                  placeholder="Khung kết quả..."
+                  rows={4}
+                />
+              )}
             </div>
           </main>
         </section>

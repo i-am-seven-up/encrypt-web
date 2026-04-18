@@ -49,6 +49,40 @@ export const decryptCaesar = (ciphertext, shiftStr) => {
   }
 };
 
+// --- CAESAR BRUTE FORCE ---
+export const bruteForceCaesar = (ciphertext) => {
+  try {
+    const decoded = decodeURIComponent(escape(atob(ciphertext)));
+    const results = [];
+    const commonChars = [' ', 'e', 't', 'a', 'o', 'n', 'i', 's', 'h', 'r', 'l', 'u', 'm', 'c', 'v', 'y', 'p', 'd', 'g', 'b'];
+    
+    for (let shift = 1; shift <= 100; shift++) {
+      let result = '';
+      for (let i = 0; i < decoded.length; i++) {
+        result += String.fromCharCode(decoded.charCodeAt(i) - shift);
+      }
+      
+      let score = 0;
+      for (let char of result.toLowerCase()) {
+        if (commonChars.includes(char)) {
+          score += 1;
+        }
+        if (char === ' ') {
+          score += 3; // Space heavily indicates words
+        }
+      }
+      
+      results.push({ shift, text: result, score });
+    }
+    
+    // Sort descending by score to surface the most readable plaintext
+    results.sort((a, b) => b.score - a.score);
+    return results;
+  } catch (error) {
+    throw new Error('Chuỗi không hợp lệ. Phải là văn bản được mã hóa bằng thuật toán Caesar của hệ thống.');
+  }
+};
+
 // --- MAIN WRAPPERS ---
 export const encryptText = (algo, text, secretKey) => {
   if (!text || !secretKey) return '';
